@@ -1,0 +1,486 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+enum UserRole {
+  CUSTOMER
+  SOMMELIER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  PAST_DUE
+  TRIALING
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum BoxSize {
+  SIX
+  TWELVE
+}
+
+enum SelectionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ============================================
+// CORE MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  avatar        String?
+  role          UserRole  @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  sommelier     Sommelier?
+  customer      Customer?
+  orders        Order[]   @relation("UserOrders")
+  addresses     Address[]
+  notifications Notification[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// SOMMELIER PROFILE
+// ============================================
+
+model Sommelier {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug              String   @unique
+  bio               String?  @db.Text
+  headline          String?
+  certifications    String[]
+  instagramHandle   String?
+  twitterHandle     String?
+  websiteUrl        String?
+  yearsExperience   Int?
+  specialties       String[]
+  languages         String[]
+  isVerified        Boolean  @default(false)
+  isActive          Boolean  @default(true)
+  commissionRate    Float    @default(0.15)
+  stripeAccountId   String?
+  stripeOnboardingComplete Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  selections      Selection[]
+  subscriptions   Subscription[]
+  followers       Follow[]         @relation("FollowedSommelier")
+  payouts         Payout[]
+
+  @@index([slug])
+  @@index([isActive, isVerified])
+}
+
+model Follow {
+  id            String     @id @default(cuid())
+  customerId    String
+  customer      Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sommelierId   String
+  sommelier     Sommelier  @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+
+  @@unique([customerId, sommelierId])
+  @@index([customerId])
+  @@index([sommelierId])
+}
+
+// ============================================
+// CUSTOMER PROFILE
+// ============================================
+
+model Customer {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone           String?
+  dateOfBirth     DateTime?
+  marketingOptIn  Boolean  @default(false)
+  referralCode    String?  @unique
+  referredById    String?
+  referredBy      Customer? @relation("Referrals", fields: [referredById], references: [id])
+  referrals       Customer[] @relation("Referrals")
+  loyaltyPoints   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  subscriptions   Subscription[]
+  orders          Order[]  @relation("CustomerOrders")
+  addresses       Address[]
+  paymentMethods  PaymentMethod[]
+
+  @@index([referralCode])
+}
+
+// ============================================
+// SELECTIONS (Sommelier's Monthly Picks)
+// ============================================
+
+model Selection {
+  id              String          @id @default(cuid())
+  sommelierId     String
+  sommelier       Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  title           String
+  description     String          @db.Text
+  story           String?         @db.Text
+  theme           String?
+  month           Int
+  year            Int
+  status          SelectionStatus @default(DRAFT)
+  publishedAt     DateTime?
+  boxSize         BoxSize         @default(SIX)
+  priceCents      Int
+  currency        String          @default("USD")
+  maxSubscribers  Int?
+  currentSubscribers Int          @default(0)
+  shipsAt         DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  wines           SelectionWine[]
+  subscriptions   Subscription[]
+  orders          Order[]
+
+  @@unique([sommelierId, month, year])
+  @@index([status, publishedAt])
+  @@index([month, year])
+}
+
+model SelectionWine {
+  id            String     @id @default(cuid())
+  selectionId   String
+  selection     Selection  @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  wineId        String
+  wine          Wine       @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  position      Int
+  tastingNotes  String?    @db.Text
+  pairingSuggestion String?
+  servingTemp   String?
+  decantTime    String?
+
+  @@unique([selectionId, wineId])
+  @@index([selectionId])
+}
+
+model Wine {
+  id              String   @id @default(cuid())
+  name            String
+  producer        String
+  region          String
+  subRegion       String?
+  country         String
+  vintage         Int
+  varietals       String[]
+  color           String
+  abv             Float?
+  bottleSizeMl    Int      @default(750)
+  imageUrl        String?
+  labelImageUrl   String?
+  description     String?  @db.Text
+  tastingNotes    String?  @db.Text
+  foodPairing     String?  @db.Text
+  retailPriceCents Int?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  selectionWines  SelectionWine[]
+
+  @@index([producer, name, vintage])
+  @@index([region, country])
+  @@index([color, isActive])
+}
+
+// ============================================
+// SUBSCRIPTIONS
+// ============================================
+
+model Subscription {
+  id                String             @id @default(cuid())
+  customerId        String
+  customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sommelierId       String
+  sommelier         Sommelier          @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  selectionId       String?
+  selection         Selection?         @relation(fields: [selectionId], references: [id], onDelete: SetNull)
+  status            SubscriptionStatus @default(ACTIVE)
+  boxSize           BoxSize            @default(SIX)
+  priceCents        Int
+  currency          String             @default("USD")
+  billingCycle      String             @default("monthly")
+  currentPeriodStart DateTime          @default(now())
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd Boolean            @default(false)
+  cancelledAt       DateTime?
+  trialEndsAt       DateTime?
+  stripeSubscriptionId String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // Relations
+  orders            Order[]
+
+  @@index([customerId, status])
+  @@index([sommelierId, status])
+  @@index([selectionId])
+}
+
+// ============================================
+// ORDERS & FULFILLMENT
+// ============================================
+
+model Order {
+  id                    String      @id @default(cuid())
+  orderNumber           String      @unique
+  customerId            String
+  customer              Customer    @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Cascade)
+  sommelierId           String?
+  sommelier             Sommelier?  @relation(fields: [sommelierId], references: [id], onDelete: SetNull)
+  selectionId           String?
+  selection             Selection?  @relation(fields: [selectionId], references: [id], onDelete: SetNull)
+  subscriptionId        String?
+  subscription          Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  status                OrderStatus @default(PENDING)
+  type                  String      @default("subscription")
+  subtotalCents         Int
+  taxCents              Int
+  shippingCents         Int
+  discountCents         Int         @default(0)
+  totalCents            Int
+  currency              String      @default("USD")
+  commissionRate        Float
+  commissionCents       Int
+  platformFeeCents      Int
+  stripePaymentIntentId String?
+  stripeChargeId        String?
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  trackingNumber        String?
+  trackingUrl           String?
+  notes                 String?     @db.Text
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  // Relations
+  items                 OrderItem[]
+  address               Address?    @relation("OrderAddress")
+  fulfillment           Fulfillment?
+
+  @@index([customerId, createdAt])
+  @@index([sommelierId, createdAt])
+  @@index([status, createdAt])
+  @@index([stripePaymentIntentId])
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  wineId      String
+  wine        Wine    @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  quantity    Int     @default(1)
+  priceCents  Int
+  position    Int?
+
+  @@unique([orderId, wineId])
+  @@index([orderId])
+}
+
+model Fulfillment {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status        String   @default("pending")
+  boxType       String?
+  weightGrams   Int?
+  dimensionsCm  String?
+  carrier       String?
+  serviceLevel  String?
+  labelUrl      String?
+  labelGeneratedAt DateTime?
+  pickedBy      String?
+  packedBy      String?
+  shippedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Address {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  company       String?
+  line1         String
+  line2         String?
+  city          String
+  state         String
+  postalCode    String
+  country       String   @default("US")
+  phone         String?
+  isDefault     Boolean  @default(false)
+  addressType   String   @default("shipping")
+  requiresAdultSignature Boolean @default(true)
+  dateOfBirthVerified    Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  orders        Order[]  @relation("OrderAddress")
+
+  @@index([userId])
+  @@index([country, state])
+}
+
+// ============================================
+// PAYMENTS & PAYOUTS
+// ============================================
+
+model PaymentMethod {
+  id                String   @id @default(cuid())
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stripePaymentMethodId String @unique
+  type              String
+  cardBrand         String?
+  cardLast4         String?
+  cardExpMonth      Int?
+  cardExpYear       Int?
+  isDefault         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model Payout {
+  id                    String   @id @default(cuid())
+  sommelierId           String
+  sommelier             Sommelier @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  amountCents           Int
+  currency              String   @default("USD")
+  status                String   @default("pending")
+  stripeTransferId      String?
+  periodStart           DateTime
+  periodEnd             DateTime
+  ordersIncluded        String[]
+  createdAt             DateTime @default(now())
+  paidAt                DateTime?
+
+  @@index([sommelierId, status])
+  @@index([periodStart, periodEnd])
+}
+
+// ============================================
+// NOTIFICATIONS & COMMUNICATIONS
+// ============================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String   @db.Text
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+// ============================================
+// ANALYTICS / EVENTS
+// ============================================
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  event     String
+  userId    String?
+  sessionId String?
+  properties Json?
+  timestamp DateTime @default(now())
+
+  @@index([event, timestamp])
+  @@index([userId, timestamp])
+}

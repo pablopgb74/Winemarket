@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60" opacity="0.1">
+  <defs>
+    <pattern id="wine-glass" patternUnits="userSpaceOnUse" width="30" height="30">
+      <path d="M15 5 C12 5 10 7 10 10 L10 20 C10 23 12 25 15 25 C18 25 20 23 20 20 L20 10 C20 7 18 5 15 5 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M15 25 L15 30" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M12 30 L18 30" stroke="currentColor" stroke-width="2"/>
+    </pattern>
+  </defs>
+  <rect width="60" height="60" fill="url(#wine-glass)"/>
+</svg>
