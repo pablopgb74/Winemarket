@@ -3,7 +3,7 @@ import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
-import type { WebhookEventMap } from "@/types/stripe"
+import { calculatePricingFromOrder } from "@/lib/pricing"
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
 
@@ -22,11 +22,17 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
-      case "account.updated":
-        await handleAccountUpdated(event.data.object as Stripe.Account)
+      case "payment_intent.succeeded":
+        await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent)
         break
-      case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+      case "payment_intent.payment_failed":
+        await handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent)
+        break
+      case "payment_intent.canceled":
+        await handlePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent)
+        break
+      case "charge.refunded":
+        await handleChargeRefunded(event.data.object as Stripe.Charge)
         break
       case "customer.subscription.created":
       case "customer.subscription.updated":
@@ -36,16 +42,10 @@ export async function POST(req: NextRequest) {
         await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
         break
       case "invoice.payment_succeeded":
-        await handlePaymentSucceeded(event.data.object as Stripe.Invoice)
+        await handleSubscriptionPaymentSucceeded(event.data.object as Stripe.Invoice)
         break
       case "invoice.payment_failed":
-        await handlePaymentFailed(event.data.object as Stripe.Invoice)
-        break
-      case "payout.paid":
-        await handlePayoutPaid(event.data.object as Stripe.Payout)
-        break
-      case "payout.failed":
-        await handlePayoutFailed(event.data.object as Stripe.Payout)
+        await handleSubscriptionPaymentFailed(event.data.object as Stripe.Invoice)
         break
     }
   } catch (err) {
@@ -56,25 +56,202 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ received: true })
 }
 
-async function handleAccountUpdated(account: Stripe.Account) {
-  const sommelier = await prisma.sommelier.findUnique({
-    where: { stripeAccountId: account.id },
-  })
-  if (!sommelier) return
+// ============================================
+// PAYMENT INTENT HANDLERS (One-time purchases)
+// ============================================
 
-  await prisma.sommelier.update({
-    where: { id: sommelier.id },
-    data: {
-      stripeOnboardingComplete: account.details_submitted && account.charges_enabled && account.payouts_enabled,
-    },
-  })
-}
-
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  if (session.mode === "subscription") {
+async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  const orderId = paymentIntent.metadata.orderId
+  if (!orderId) {
+    console.warn("PaymentIntent missing orderId metadata", paymentIntent.id)
     return
   }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      selection: { include: { sommelier: true } },
+      customer: { include: { user: true } },
+      sommelier: { include: { user: true } },
+    },
+  })
+
+  if (!order) {
+    console.warn("Order not found for payment_intent", paymentIntent.id)
+    return
+  }
+
+  if (order.status === "CONFIRMED") {
+    console.log("Order already confirmed", orderId)
+    return
+  }
+
+  // Calcular pricing desde el snapshot del order
+  const pricing = calculatePricingFromOrder({
+    costCents: order.costCents,
+    markupMode: order.markupMode,
+    markupValue: order.markupValue,
+    platformSplitPct: order.platformSplitPct,
+    sommelierSplitPct: order.sommelierSplitPct,
+    currency: order.currency,
+  })
+
+  // Transacción atómica: actualizar order + crear wallet entry + notificación
+  await prisma.$transaction(async (tx) => {
+    // 1. Actualizar order
+    const updatedOrder = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: "CONFIRMED",
+        stripeChargeId: paymentIntent.latest_charge as string,
+        // Los campos de pricing ya están en el order (snapshot)
+      },
+    })
+
+    // 2. Crear WalletEntry para el sommelier (crédito)
+    if (order.sommelierId && pricing.sommelierSplitCents > 0) {
+      const lastEntry = await tx.walletEntry.findFirst({
+        where: { sommelierId: order.sommelierId },
+        orderBy: { createdAt: "desc" },
+      })
+      const newBalance = (lastEntry?.balanceCents || 0) + pricing.sommelierSplitCents
+
+      const walletEntry = await tx.walletEntry.create({
+        data: {
+          sommelierId: order.sommelierId,
+          orderId: order.id,
+          type: "SALE_COMMISSION",
+          amountCents: pricing.sommelierSplitCents,
+          balanceCents: newBalance,
+          description: `Venta: ${order.selection?.title || "Selección"} (${order.boxSize})`,
+        },
+      })
+
+      // 3. Vincular wallet entry al order
+      await tx.order.update({
+        where: { id: orderId },
+        data: { walletEntryId: walletEntry.id },
+      })
+
+      // 4. Crear notificación de venta para el sommelier
+      await tx.saleNotification.create({
+        data: {
+          sommelierId: order.sommelierId,
+          orderId: order.id,
+          type: "new_sale",
+        },
+      })
+
+      // 5. Notificación al usuario (email)
+      await tx.notification.create({
+        data: {
+          userId: order.sommelier.userId,
+          type: "new_sale",
+          title: "¡Nueva venta!",
+          message: `Vendiste 1 caja de "${order.selection?.title}". Tu comisión: $${(pricing.sommelierSplitCents / 100).toFixed(2)}`,
+          data: { orderId: order.id, amountCents: pricing.sommelierSplitCents },
+        },
+      })
+    }
+
+    // 6. Notificación al cliente (email de confirmación)
+    await tx.notification.create({
+      data: {
+        userId: order.customer.userId,
+        type: "order_confirmed",
+        title: "Orden confirmada",
+        message: `Tu orden #${order.orderNumber} ha sido confirmada. Total: $${(order.totalCents / 100).toFixed(2)}`,
+        data: { orderId: order.id },
+      },
+    })
+  })
+
+  console.log(`Order ${orderId} confirmed, wallet entry created for sommelier ${order.sommelierId}`)
 }
+
+async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
+  const orderId = paymentIntent.metadata.orderId
+  if (!orderId) return
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: "CANCELLED" },
+  })
+
+  // Notificar al cliente
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { customer: { include: { user: true } } },
+  })
+  if (order) {
+    await prisma.notification.create({
+      data: {
+        userId: order.customer.userId,
+        type: "payment_failed",
+        title: "Pago fallido",
+        message: `No pudimos procesar el pago de tu orden #${order.orderNumber}. Por favor, intenta de nuevo.`,
+        data: { orderId: order.id, error: paymentIntent.last_payment_error?.message },
+      },
+    })
+  }
+}
+
+async function handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent) {
+  const orderId = paymentIntent.metadata.orderId
+  if (!orderId) return
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: "CANCELLED" },
+  })
+}
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const paymentIntentId = charge.payment_intent as string
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+  const orderId = paymentIntent.metadata.orderId
+  if (!orderId) return
+
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { sommelier: true, walletEntry: true },
+    })
+    if (!order) return
+
+    // Actualizar order
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: "REFUNDED" },
+    })
+
+    // Revertir wallet entry si existe
+    if (order.walletEntry && order.sommelierId) {
+      const lastEntry = await tx.walletEntry.findFirst({
+        where: { sommelierId: order.sommelierId },
+        orderBy: { createdAt: "desc" },
+      })
+      const refundAmount = charge.amount_refunded
+      const sommelierRefund = Math.round(refundAmount * (order.sommelierSplitPct / 100))
+      const newBalance = (lastEntry?.balanceCents || 0) - sommelierRefund
+
+      await tx.walletEntry.create({
+        data: {
+          sommelierId: order.sommelierId,
+          orderId: order.id,
+          type: "ADJUSTMENT",
+          amountCents: -sommelierRefund,
+          balanceCents: newBalance,
+          description: `Reembolso: ${order.selection?.title || "Selección"} (parcial: $${(refundAmount / 100).toFixed(2)})`,
+        },
+      })
+    }
+  })
+}
+
+// ============================================
+// SUBSCRIPTION HANDLERS (Optional subscriptions)
+// ============================================
 
 async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const selectionId = subscription.metadata.selectionId
@@ -106,57 +283,127 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   await prisma.subscription.update({
     where: { stripeSubscriptionId: subscription.id },
-    data: {
-      status: "CANCELLED",
-      cancelledAt: new Date(),
-    },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
   })
 }
 
-async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
+async function handleSubscriptionPaymentSucceeded(invoice: Stripe.Invoice) {
   if (!invoice.subscription) return
 
   const subscription = await prisma.subscription.findUnique({
     where: { stripeSubscriptionId: invoice.subscription as string },
-    include: { sommelier: true, selection: true },
+    include: { sommelier: true, selection: true, customer: { include: { user: true } } },
   })
   if (!subscription) return
 
-  await prisma.order.create({
-    data: {
-      orderNumber: generateOrderNumber(),
-      customerId: subscription.customerId,
-      sommelierId: subscription.sommelierId,
-      selectionId: subscription.selectionId,
-      subscriptionId: subscription.id,
-      status: "CONFIRMED",
-      type: "subscription",
-      subtotalCents: invoice.amount_paid,
-      taxCents: invoice.tax || 0,
-      shippingCents: 0,
-      totalCents: invoice.amount_paid,
-      commissionRate: subscription.sommelier.commissionRate,
-      commissionCents: Math.round(invoice.amount_paid * subscription.sommelier.commissionRate),
-      platformFeeCents: Math.round(invoice.amount_paid * (1 - subscription.sommelier.commissionRate)),
-      stripeChargeId: invoice.payment_intent as string,
-    },
+  // Calcular pricing desde la suscripción (usar pricing de la selection)
+  const selection = subscription.selection
+  if (!selection) return
+
+  const pricing = calculatePricingFromSelection({
+    costCents: selection.costCents,
+    markupMode: selection.markupMode,
+    markupValue: selection.markupValue,
+    platformSplitPct: selection.platformSplitPct,
+    sommelierSplitPct: selection.sommelierSplitPct,
+    currency: selection.currency,
+  })
+
+  await prisma.$transaction(async (tx) => {
+    // Crear order de renovación
+    const order = await tx.order.create({
+      data: {
+        orderNumber: generateOrderNumber(),
+        customerId: subscription.customerId,
+        sommelierId: subscription.sommelierId,
+        selectionId: subscription.selectionId,
+        subscriptionId: subscription.id,
+        status: "CONFIRMED",
+        type: "subscription",
+        costCents: selection.costCents,
+        markupMode: selection.markupMode,
+        markupValue: selection.markupValue,
+        platformSplitPct: selection.platformSplitPct,
+        sommelierSplitPct: selection.sommelierSplitPct,
+        markupCents: pricing.markupCents,
+        platformSplitCents: pricing.platformSplitCents,
+        sommelierSplitCents: pricing.sommelierSplitCents,
+        priceCents: pricing.priceCents,
+        totalCents: invoice.amount_paid,
+        currency: subscription.currency,
+        stripeChargeId: invoice.payment_intent as string,
+      },
+    })
+
+    // Wallet entry para sommelier
+    if (subscription.sommelierId && pricing.sommelierSplitCents > 0) {
+      const lastEntry = await tx.walletEntry.findFirst({
+        where: { sommelierId: subscription.sommelierId },
+        orderBy: { createdAt: "desc" },
+      })
+      const newBalance = (lastEntry?.balanceCents || 0) + pricing.sommelierSplitCents
+
+      const walletEntry = await tx.walletEntry.create({
+        data: {
+          sommelierId: subscription.sommelierId,
+          orderId: order.id,
+          type: "SALE_COMMISSION",
+          amountCents: pricing.sommelierSplitCents,
+          balanceCents: newBalance,
+          description: `Renovación suscripción: ${selection.title}`,
+        },
+      })
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: { walletEntryId: walletEntry.id },
+      })
+
+      // Notificación
+      await tx.saleNotification.create({
+        data: {
+          sommelierId: subscription.sommelierId,
+          orderId: order.id,
+          type: "subscription_renewal",
+        },
+      })
+
+      await tx.notification.create({
+        data: {
+          userId: subscription.sommelier.userId,
+          type: "subscription_renewal",
+          title: "Renovación de suscripción",
+          message: `Un cliente renovó su suscripción a "${selection.title}". Tu comisión: $${(pricing.sommelierSplitCents / 100).toFixed(2)}`,
+          data: { orderId: order.id, amountCents: pricing.sommelierSplitCents },
+        },
+      })
+    }
+
+    // Notificación al cliente
+    await tx.notification.create({
+      data: {
+        userId: subscription.customer.userId,
+        type: "subscription_renewal",
+        title: "Suscripción renovada",
+        message: `Tu suscripción a "${selection.title}" se ha renovado. Total: $${(invoice.amount_paid / 100).toFixed(2)}`,
+        data: { orderId: order.id },
+      },
+    })
   })
 }
 
-async function handlePaymentFailed(invoice: Stripe.Invoice) {
+async function handleSubscriptionPaymentFailed(invoice: Stripe.Invoice) {
+  if (!invoice.subscription) return
+
   await prisma.subscription.update({
     where: { stripeSubscriptionId: invoice.subscription as string },
     data: { status: "PAST_DUE" },
   })
 }
 
-async function handlePayoutPaid(payout: Stripe.Payout) {
-  // Record payout to sommelier
-}
-
-async function handlePayoutFailed(payout: Stripe.Payout) {
-  // Alert sommelier, retry logic
-}
+// ============================================
+// HELPERS
+// ============================================
 
 function mapStripeStatus(status: Stripe.Subscription.Status): "ACTIVE" | "PAUSED" | "CANCELLED" | "PAST_DUE" | "TRIALING" {
   switch (status) {

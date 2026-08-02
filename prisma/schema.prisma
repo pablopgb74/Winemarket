@@ -46,6 +46,17 @@ enum SelectionStatus {
   ARCHIVED
 }
 
+enum MarkupMode {
+  PERCENTAGE
+  FIXED
+}
+
+enum WalletEntryType {
+  SALE_COMMISSION
+  PAYOUT
+  ADJUSTMENT
+}
+
 // ============================================
 // CORE MODELS
 // ============================================
@@ -60,7 +71,6 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  // Relations
   accounts      Account[]
   sessions      Session[]
   sommelier     Sommelier?
@@ -131,17 +141,16 @@ model Sommelier {
   languages         String[]
   isVerified        Boolean  @default(false)
   isActive          Boolean  @default(true)
-  commissionRate    Float    @default(0.15)
-  stripeAccountId   String?
-  stripeOnboardingComplete Boolean @default(false)
+  defaultCommissionRate Float @default(50.0) // % del markup para sommelier (default 50%)
+  stripeCustomerId  String?  // Para pagos futuros
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  // Relations
-  selections      Selection[]
-  subscriptions   Subscription[]
-  followers       Follow[]         @relation("FollowedSommelier")
-  payouts         Payout[]
+  selections        Selection[]
+  subscriptions     Subscription[]
+  followers         Follow[]         @relation("FollowedSommelier")
+  walletEntries     WalletEntry[]
+  saleNotifications SaleNotification[]
 
   @@index([slug])
   @@index([isActive, isVerified])
@@ -176,10 +185,10 @@ model Customer {
   referredBy      Customer? @relation("Referrals", fields: [referredById], references: [id])
   referrals       Customer[] @relation("Referrals")
   loyaltyPoints   Int      @default(0)
+  stripeCustomerId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // Relations
   subscriptions   Subscription[]
   orders          Order[]  @relation("CustomerOrders")
   addresses       Address[]
@@ -193,30 +202,43 @@ model Customer {
 // ============================================
 
 model Selection {
-  id              String          @id @default(cuid())
-  sommelierId     String
-  sommelier       Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  title           String
-  description     String          @db.Text
-  story           String?         @db.Text
-  theme           String?
-  month           Int
-  year            Int
-  status          SelectionStatus @default(DRAFT)
-  publishedAt     DateTime?
-  boxSize         BoxSize         @default(SIX)
-  priceCents      Int
-  currency        String          @default("USD")
-  maxSubscribers  Int?
-  currentSubscribers Int          @default(0)
-  shipsAt         DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id                 String          @id @default(cuid())
+  sommelierId        String
+  sommelier          Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  title              String
+  description        String          @db.Text
+  story              String?         @db.Text
+  theme              String?
+  month              Int
+  year               Int
+  status             SelectionStatus @default(DRAFT)
+  publishedAt        DateTime?
+  boxSize            BoxSize         @default(SIX)
+  
+  // --- PRICING CONFIGURABLE ---
+  costCents          Int             // Costo real: vinos + caja + envío
+  markupMode         MarkupMode      @default(PERCENTAGE)
+  markupValue        Float           // 20.0 = 20% | 15.0 = $15 fijo
+  platformSplitPct   Float           @default(50.0) // % del markup para plataforma
+  sommelierSplitPct  Float           @default(50.0) // % del markup para sommelier
+  // --- CAMPOS CALCULADOS (denormalizados) ---
+  markupCents        Int             // Calculado
+  platformSplitCents Int             // Calculado
+  sommelierSplitCents Int            // Calculado
+  priceCents         Int             // Calculado: costCents + markupCents
+  currency           String          @default("USD")
+  // -------------------------------
+  
+  maxSubscribers     Int?
+  currentSubscribers Int             @default(0)
+  shipsAt            DateTime?
+  allowsSubscription Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
-  // Relations
-  wines           SelectionWine[]
-  subscriptions   Subscription[]
-  orders          Order[]
+  wines              SelectionWine[]
+  subscriptions      Subscription[]
+  orders             Order[]
 
   @@unique([sommelierId, month, year])
   @@index([status, publishedAt])
@@ -224,45 +246,44 @@ model Selection {
 }
 
 model SelectionWine {
-  id            String     @id @default(cuid())
-  selectionId   String
-  selection     Selection  @relation(fields: [selectionId], references: [id], onDelete: Cascade)
-  wineId        String
-  wine          Wine       @relation(fields: [wineId], references: [id], onDelete: Cascade)
-  position      Int
-  tastingNotes  String?    @db.Text
-  pairingSuggestion String?
-  servingTemp   String?
-  decantTime    String?
+  id                 String     @id @default(cuid())
+  selectionId        String
+  selection          Selection  @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  wineId             String
+  wine               Wine       @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  position           Int
+  tastingNotes       String?    @db.Text
+  pairingSuggestion  String?
+  servingTemp        String?
+  decantTime         String?
 
   @@unique([selectionId, wineId])
   @@index([selectionId])
 }
 
 model Wine {
-  id              String   @id @default(cuid())
-  name            String
-  producer        String
-  region          String
-  subRegion       String?
-  country         String
-  vintage         Int
-  varietals       String[]
-  color           String
-  abv             Float?
-  bottleSizeMl    Int      @default(750)
-  imageUrl        String?
-  labelImageUrl   String?
-  description     String?  @db.Text
-  tastingNotes    String?  @db.Text
-  foodPairing     String?  @db.Text
+  id               String   @id @default(cuid())
+  name             String
+  producer         String
+  region           String
+  subRegion        String?
+  country          String
+  vintage          Int
+  varietals        String[]
+  color            String
+  abv              Float?
+  bottleSizeMl     Int      @default(750)
+  imageUrl         String?
+  labelImageUrl    String?
+  description      String?  @db.Text
+  tastingNotes     String?  @db.Text
+  foodPairing      String?  @db.Text
   retailPriceCents Int?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  // Relations
-  selectionWines  SelectionWine[]
+  selectionWines   SelectionWine[]
 
   @@index([producer, name, vintage])
   @@index([region, country])
@@ -270,33 +291,32 @@ model Wine {
 }
 
 // ============================================
-// SUBSCRIPTIONS
+// SUBSCRIPTIONS (Opcional)
 // ============================================
 
 model Subscription {
-  id                String             @id @default(cuid())
-  customerId        String
-  customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  sommelierId       String
-  sommelier         Sommelier          @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  selectionId       String?
-  selection         Selection?         @relation(fields: [selectionId], references: [id], onDelete: SetNull)
-  status            SubscriptionStatus @default(ACTIVE)
-  boxSize           BoxSize            @default(SIX)
-  priceCents        Int
-  currency          String             @default("USD")
-  billingCycle      String             @default("monthly")
-  currentPeriodStart DateTime          @default(now())
+  id                 String             @id @default(cuid())
+  customerId         String
+  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sommelierId        String
+  sommelier          Sommelier          @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  selectionId        String?
+  selection          Selection?         @relation(fields: [selectionId], references: [id], onDelete: SetNull)
+  status             SubscriptionStatus @default(ACTIVE)
+  boxSize            BoxSize            @default(SIX)
+  priceCents         Int                // Precio locked al momento de suscribirse
+  currency           String             @default("USD")
+  billingCycle       String             @default("monthly")
+  currentPeriodStart DateTime           @default(now())
   currentPeriodEnd   DateTime
-  cancelAtPeriodEnd Boolean            @default(false)
-  cancelledAt       DateTime?
-  trialEndsAt       DateTime?
+  cancelAtPeriodEnd  Boolean            @default(false)
+  cancelledAt        DateTime?
+  trialEndsAt        DateTime?
   stripeSubscriptionId String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  // Relations
-  orders            Order[]
+  orders             Order[]
 
   @@index([customerId, status])
   @@index([sommelierId, status])
@@ -319,16 +339,25 @@ model Order {
   subscriptionId        String?
   subscription          Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   status                OrderStatus @default(PENDING)
-  type                  String      @default("subscription")
-  subtotalCents         Int
-  taxCents              Int
-  shippingCents         Int
+  type                  String      @default("one_time") // "one_time" | "subscription"
+  
+  // --- PRICING SNAPSHOT AL MOMENTO DE LA COMPRA ---
+  costCents             Int
+  markupMode            MarkupMode
+  markupValue           Float
+  platformSplitPct      Float
+  sommelierSplitPct     Float
+  markupCents           Int
+  platformSplitCents    Int
+  sommelierSplitCents   Int
+  priceCents            Int
+  currency              String      @default("USD")
+  // ------------------------------------------------
+  
+  taxCents              Int         @default(0)
+  shippingCents         Int         @default(0)
   discountCents         Int         @default(0)
   totalCents            Int
-  currency              String      @default("USD")
-  commissionRate        Float
-  commissionCents       Int
-  platformFeeCents      Int
   stripePaymentIntentId String?
   stripeChargeId        String?
   shippedAt             DateTime?
@@ -339,10 +368,10 @@ model Order {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
-  // Relations
   items                 OrderItem[]
   address               Address?    @relation("OrderAddress")
   fulfillment           Fulfillment?
+  walletEntry           WalletEntry?
 
   @@index([customerId, createdAt])
   @@index([sommelierId, createdAt])
@@ -365,93 +394,99 @@ model OrderItem {
 }
 
 model Fulfillment {
-  id            String   @id @default(cuid())
-  orderId       String   @unique
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  status        String   @default("pending")
-  boxType       String?
-  weightGrams   Int?
-  dimensionsCm  String?
-  carrier       String?
-  serviceLevel  String?
-  labelUrl      String?
-  labelGeneratedAt DateTime?
-  pickedBy      String?
-  packedBy      String?
-  shippedAt     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  orderId            String   @unique
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status             String   @default("pending")
+  boxType            String?
+  weightGrams        Int?
+  dimensionsCm       String?
+  carrier            String?
+  serviceLevel       String?
+  labelUrl           String?
+  labelGeneratedAt   DateTime?
+  pickedBy           String?
+  packedBy           String?
+  shippedAt          DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([status])
 }
 
 model Address {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  company       String?
-  line1         String
-  line2         String?
-  city          String
-  state         String
-  postalCode    String
-  country       String   @default("US")
-  phone         String?
-  isDefault     Boolean  @default(false)
-  addressType   String   @default("shipping")
-  requiresAdultSignature Boolean @default(true)
-  dateOfBirthVerified    Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                      String   @id @default(cuid())
+  userId                  String
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                    String
+  company                 String?
+  line1                   String
+  line2                   String?
+  city                    String
+  state                   String
+  postalCode              String
+  country                 String   @default("US")
+  phone                   String?
+  isDefault               Boolean  @default(false)
+  addressType             String   @default("shipping")
+  requiresAdultSignature  Boolean  @default(true)
+  dateOfBirthVerified     Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
-  // Relations
-  orders        Order[]  @relation("OrderAddress")
+  orders                  Order[]  @relation("OrderAddress")
 
   @@index([userId])
   @@index([country, state])
 }
 
 // ============================================
-// PAYMENTS & PAYOUTS
+// PAYMENT METHODS
 // ============================================
 
 model PaymentMethod {
-  id                String   @id @default(cuid())
-  customerId        String
-  customer          Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  stripePaymentMethodId String @unique
-  type              String
-  cardBrand         String?
-  cardLast4         String?
-  cardExpMonth      Int?
-  cardExpYear       Int?
-  isDefault         Boolean  @default(false)
-  createdAt         DateTime @default(now())
+  id                      String   @id @default(cuid())
+  customerId              String
+  customer                Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stripePaymentMethodId   String   @unique
+  type                    String
+  cardBrand               String?
+  cardLast4               String?
+  cardExpMonth            Int?
+  cardExpYear             Int?
+  isDefault               Boolean  @default(false)
+  createdAt               DateTime @default(now())
 
   @@index([customerId])
 }
 
-model Payout {
-  id                    String   @id @default(cuid())
-  sommelierId           String
-  sommelier             Sommelier @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  amountCents           Int
-  currency              String   @default("USD")
-  status                String   @default("pending")
-  stripeTransferId      String?
-  periodStart           DateTime
-  periodEnd             DateTime
-  ordersIncluded        String[]
-  createdAt             DateTime @default(now())
-  paidAt                DateTime?
+// ============================================
+// WALLET & PAYOUTS (Ledger inmutable)
+// ============================================
 
-  @@index([sommelierId, status])
-  @@index([periodStart, periodEnd])
+model WalletEntry {
+  id            String          @id @default(cuid())
+  sommelierId   String
+  sommelier     Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  orderId       String?         @unique
+  order         Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type          WalletEntryType
+  amountCents   Int             // Positivo = crédito, negativo = débito
+  balanceCents  Int             // Running balance
+  description   String
+  periodStart   DateTime?       // Para liquidaciones
+  periodEnd     DateTime?
+  isSettled     Boolean         @default(false)
+  settledAt     DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@index([sommelierId, createdAt])
+  @@index([periodStart, periodEnd, isSettled])
+  @@index([orderId])
 }
 
 // ============================================
-// NOTIFICATIONS & COMMUNICATIONS
+// NOTIFICATIONS
 // ============================================
 
 model Notification {
@@ -467,6 +502,19 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+model SaleNotification {
+  id           String     @id @default(cuid())
+  sommelierId  String
+  sommelier    Sommelier  @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  orderId      String
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type         String     // "new_sale" | "subscription_renewal"
+  readAt       DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([sommelierId, readAt])
 }
 
 // ============================================

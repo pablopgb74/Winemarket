@@ -5,7 +5,7 @@ import { ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { Wine, Users, Package, DollarSign, Settings, LogOut, LayoutDashboard, Box, TrendingUp, UserPlus, Menu, X } from "lucide-react"
+import { Wine, Users, Package, DollarSign, Settings, LogOut, LayoutDashboard, Box, TrendingUp, UserPlus, Menu, X, Wallet } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -15,7 +15,7 @@ const navigation = {
     { name: "Overview", href: "/dashboard/sommelier", icon: LayoutDashboard },
     { name: "My Selections", href: "/dashboard/sommelier/selections", icon: Box },
     { name: "Subscribers", href: "/dashboard/sommelier/subscribers", icon: Users },
-    { name: "Earnings", href: "/dashboard/sommelier/earnings", icon: DollarSign },
+    { name: "Wallet", href: "/dashboard/sommelier/wallet", icon: Wallet },
     { name: "Profile", href: "/dashboard/sommelier/profile", icon: Settings },
   ],
   customer: [
