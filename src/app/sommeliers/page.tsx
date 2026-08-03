@@ -1,6 +1,6 @@
 // src/app/sommeliers/page.tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
+import { Button } from "../../components/ui/button"
 import { Wine, Users, Star, Award, MapPin, Instagram, Twitter, ExternalLink } from "lucide-react"
 import Link from "next/link"
 

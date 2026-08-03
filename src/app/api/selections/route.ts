@@ -1,8 +1,8 @@
 // src/app/api/selections/route.ts
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { calculatePricing, validatePricing } from "@/lib/pricing"
-import { selectionSchema } from "@/lib/validations"
+import { auth } from "../../../lib/auth"
+import { prisma } from "../../../lib/prisma"
+import { calculatePricing, validatePricing } from "../../../lib/pricing"
+import { selectionSchema } from "../../../lib/validations"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {

@@ -1,7 +1,7 @@
 // src/app/auth/verify-request/page.tsx
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "../../../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../components/ui/card"
 import { Mail, CheckCircle, Loader2 } from "lucide-react"
 
 export default function VerifyRequestPage() {

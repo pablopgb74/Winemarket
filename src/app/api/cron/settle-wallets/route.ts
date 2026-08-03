@@ -1,6 +1,6 @@
 // src/app/api/cron/settle-wallets/route.ts
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { auth } from "../../../../lib/auth"
+import { prisma } from "../../../../lib/prisma"
 import { NextResponse } from "next/server"
 
 const CRON_SECRET = process.env.CRON_SECRET

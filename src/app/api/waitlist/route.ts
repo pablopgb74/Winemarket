@@ -1,5 +1,5 @@
 // src/app/api/waitlist/route.ts
-import { resend } from "@/lib/resend"
+import { resend } from "../../../lib/resend"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 

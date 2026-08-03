@@ -1,10 +1,10 @@
 // src/components/ui/LanguageSelector.tsx
 "use client"
 
-import { useLanguage } from "@/lib/i18n/LanguageContext"
+import { useLanguage } from "../../lib/i18n/LanguageContext"
 import { Globe } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button } from "../../components/ui/button"
+import { cn } from "../../lib/utils"
 
 export function LanguageSelector() {
   const { locale, setLocale, t, availableLocales } = useLanguage()

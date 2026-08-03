@@ -3,8 +3,8 @@
 
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "../../../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../components/ui/card"
 import { AlertCircle, RefreshCw } from "lucide-react"
 
 export default function AuthErrorPage() {

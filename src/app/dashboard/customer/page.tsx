@@ -1,6 +1,6 @@
 // src/app/dashboard/customer/page.tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card"
+import { Button } from "../../../components/ui/button"
 import { Package, Box, Heart, Truck, Star, Calendar } from "lucide-react"
 import Link from "next/link"
 

@@ -1,9 +1,9 @@
 // src/app/api/orders/route.ts
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { stripe, createPaymentIntent, getOrCreateCustomer, generateOrderNumber } from "@/lib/stripe"
-import { calculatePricingFromSelection } from "@/lib/pricing"
-import { createOrderSchema } from "@/lib/validations"
+import { auth } from "../../../lib/auth"
+import { prisma } from "../../../lib/prisma"
+import { stripe, createPaymentIntent, getOrCreateCustomer, generateOrderNumber } from "../../../lib/stripe"
+import { calculatePricingFromSelection } from "../../../lib/pricing"
+import { createOrderSchema } from "../../../lib/validations"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {

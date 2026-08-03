@@ -1,7 +1,7 @@
 // src/app/page.tsx
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "../components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Wine, Users, Truck, Shield, Star, Sparkles } from "lucide-react"
 
 const features = [
