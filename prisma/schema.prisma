@@ -75,7 +75,7 @@ model User {
   sessions      Session[]
   sommelier     Sommelier?
   customer      Customer?
-  orders        Order[]   @relation("UserOrders")
+  orders        Order[]        @relation("UserOrders")
   addresses     Address[]
   notifications Notification[]
 
@@ -126,29 +126,30 @@ model VerificationToken {
 // ============================================
 
 model Sommelier {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  slug              String   @unique
-  bio               String?  @db.Text
-  headline          String?
-  certifications    String[]
-  instagramHandle   String?
-  twitterHandle     String?
-  websiteUrl        String?
-  yearsExperience   Int?
-  specialties       String[]
-  languages         String[]
-  isVerified        Boolean  @default(false)
-  isActive          Boolean  @default(true)
-  defaultCommissionRate Float @default(50.0) // % del markup para sommelier (default 50%)
-  stripeCustomerId  String?  // Para pagos futuros
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slug                  String   @unique
+  bio                   String?  @db.Text
+  headline              String?
+  certifications        String[]
+  instagramHandle       String?
+  twitterHandle         String?
+  websiteUrl            String?
+  yearsExperience       Int?
+  specialties           String[]
+  languages             String[]
+  isVerified            Boolean  @default(false)
+  isActive              Boolean  @default(true)
+  defaultCommissionRate Float    @default(50.0) // % del markup para sommelier (default 50%)
+  stripeCustomerId      String? // Para pagos futuros
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   selections        Selection[]
   subscriptions     Subscription[]
-  followers         Follow[]         @relation("FollowedSommelier")
+  followers         Follow[]           @relation("FollowedSommelier")
+  orders            Order[]            @relation("SommelierOrders")
   walletEntries     WalletEntry[]
   saleNotifications SaleNotification[]
 
@@ -157,12 +158,12 @@ model Sommelier {
 }
 
 model Follow {
-  id            String     @id @default(cuid())
-  customerId    String
-  customer      Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  sommelierId   String
-  sommelier     Sommelier  @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  createdAt     DateTime   @default(now())
+  id          String    @id @default(cuid())
+  customerId  String
+  customer    Customer  @relation("FollowedBy", fields: [customerId], references: [id], onDelete: Cascade)
+  sommelierId String
+  sommelier   Sommelier @relation("FollowedSommelier", fields: [sommelierId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
 
   @@unique([customerId, sommelierId])
   @@index([customerId])
@@ -174,25 +175,26 @@ model Follow {
 // ============================================
 
 model Customer {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone           String?
-  dateOfBirth     DateTime?
-  marketingOptIn  Boolean  @default(false)
-  referralCode    String?  @unique
-  referredById    String?
-  referredBy      Customer? @relation("Referrals", fields: [referredById], references: [id])
-  referrals       Customer[] @relation("Referrals")
-  loyaltyPoints   Int      @default(0)
+  id               String     @id @default(cuid())
+  userId           String     @unique
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone            String?
+  dateOfBirth      DateTime?
+  marketingOptIn   Boolean    @default(false)
+  referralCode     String?    @unique
+  referredById     String?
+  referredBy       Customer?  @relation("Referrals", fields: [referredById], references: [id])
+  referrals        Customer[] @relation("Referrals")
+  loyaltyPoints    Int        @default(0)
   stripeCustomerId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  subscriptions   Subscription[]
-  orders          Order[]  @relation("CustomerOrders")
-  addresses       Address[]
-  paymentMethods  PaymentMethod[]
+  subscriptions      Subscription[]
+  orders             Order[]         @relation("CustomerOrders")
+  addresses          Address[]
+  paymentMethods     PaymentMethod[]
+  followedSommeliers Follow[]        @relation("FollowedBy")
 
   @@index([referralCode])
 }
@@ -202,43 +204,43 @@ model Customer {
 // ============================================
 
 model Selection {
-  id                 String          @id @default(cuid())
-  sommelierId        String
-  sommelier          Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  title              String
-  description        String          @db.Text
-  story              String?         @db.Text
-  theme              String?
-  month              Int
-  year               Int
-  status             SelectionStatus @default(DRAFT)
-  publishedAt        DateTime?
-  boxSize            BoxSize         @default(SIX)
-  
-  // --- PRICING CONFIGURABLE ---
-  costCents          Int             // Costo real: vinos + caja + envío
-  markupMode         MarkupMode      @default(PERCENTAGE)
-  markupValue        Float           // 20.0 = 20% | 15.0 = $15 fijo
-  platformSplitPct   Float           @default(50.0) // % del markup para plataforma
-  sommelierSplitPct  Float           @default(50.0) // % del markup para sommelier
-  // --- CAMPOS CALCULADOS (denormalizados) ---
-  markupCents        Int             // Calculado
-  platformSplitCents Int             // Calculado
-  sommelierSplitCents Int            // Calculado
-  priceCents         Int             // Calculado: costCents + markupCents
-  currency           String          @default("USD")
-  // -------------------------------
-  
-  maxSubscribers     Int?
-  currentSubscribers Int             @default(0)
-  shipsAt            DateTime?
-  allowsSubscription Boolean         @default(true)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  sommelierId String
+  sommelier   Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  title       String
+  description String          @db.Text
+  story       String?         @db.Text
+  theme       String?
+  month       Int
+  year        Int
+  status      SelectionStatus @default(DRAFT)
+  publishedAt DateTime?
+  boxSize     BoxSize         @default(SIX)
 
-  wines              SelectionWine[]
-  subscriptions      Subscription[]
-  orders             Order[]
+  // --- PRICING CONFIGURABLE ---
+  costCents           Int // Costo real: vinos + caja + envío
+  markupMode          MarkupMode @default(PERCENTAGE)
+  markupValue         Float // 20.0 = 20% | 15.0 = $15 fijo
+  platformSplitPct    Float      @default(50.0) // % del markup para plataforma
+  sommelierSplitPct   Float      @default(50.0) // % del markup para sommelier
+  // --- CAMPOS CALCULADOS (denormalizados) ---
+  markupCents         Int // Calculado
+  platformSplitCents  Int // Calculado
+  sommelierSplitCents Int // Calculado
+  priceCents          Int // Calculado: costCents + markupCents
+  currency            String     @default("USD")
+  // -------------------------------
+
+  maxSubscribers     Int?
+  currentSubscribers Int       @default(0)
+  shipsAt            DateTime?
+  allowsSubscription Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  wines         SelectionWine[]
+  subscriptions Subscription[]
+  orders        Order[]
 
   @@unique([sommelierId, month, year])
   @@index([status, publishedAt])
@@ -246,16 +248,16 @@ model Selection {
 }
 
 model SelectionWine {
-  id                 String     @id @default(cuid())
-  selectionId        String
-  selection          Selection  @relation(fields: [selectionId], references: [id], onDelete: Cascade)
-  wineId             String
-  wine               Wine       @relation(fields: [wineId], references: [id], onDelete: Cascade)
-  position           Int
-  tastingNotes       String?    @db.Text
-  pairingSuggestion  String?
-  servingTemp        String?
-  decantTime         String?
+  id                String    @id @default(cuid())
+  selectionId       String
+  selection         Selection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  wineId            String
+  wine              Wine      @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  position          Int
+  tastingNotes      String?   @db.Text
+  pairingSuggestion String?
+  servingTemp       String?
+  decantTime        String?
 
   @@unique([selectionId, wineId])
   @@index([selectionId])
@@ -283,7 +285,8 @@ model Wine {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  selectionWines   SelectionWine[]
+  selectionWines SelectionWine[]
+  orderItems     OrderItem[]
 
   @@index([producer, name, vintage])
   @@index([region, country])
@@ -295,28 +298,28 @@ model Wine {
 // ============================================
 
 model Subscription {
-  id                 String             @id @default(cuid())
-  customerId         String
-  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  sommelierId        String
-  sommelier          Sommelier          @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  selectionId        String?
-  selection          Selection?         @relation(fields: [selectionId], references: [id], onDelete: SetNull)
-  status             SubscriptionStatus @default(ACTIVE)
-  boxSize            BoxSize            @default(SIX)
-  priceCents         Int                // Precio locked al momento de suscribirse
-  currency           String             @default("USD")
-  billingCycle       String             @default("monthly")
-  currentPeriodStart DateTime           @default(now())
-  currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean            @default(false)
-  cancelledAt        DateTime?
-  trialEndsAt        DateTime?
+  id                   String             @id @default(cuid())
+  customerId           String
+  customer             Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  sommelierId          String
+  sommelier            Sommelier          @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  selectionId          String?
+  selection            Selection?         @relation(fields: [selectionId], references: [id], onDelete: SetNull)
+  status               SubscriptionStatus @default(ACTIVE)
+  boxSize              BoxSize            @default(SIX)
+  priceCents           Int // Precio locked al momento de suscribirse
+  currency             String             @default("USD")
+  billingCycle         String             @default("monthly")
+  currentPeriodStart   DateTime           @default(now())
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  cancelledAt          DateTime?
+  trialEndsAt          DateTime?
   stripeSubscriptionId String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  orders             Order[]
+  orders Order[]
 
   @@index([customerId, status])
   @@index([sommelierId, status])
@@ -328,35 +331,37 @@ model Subscription {
 // ============================================
 
 model Order {
-  id                    String      @id @default(cuid())
-  orderNumber           String      @unique
-  customerId            String
-  customer              Customer    @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Cascade)
-  sommelierId           String?
-  sommelier             Sommelier?  @relation(fields: [sommelierId], references: [id], onDelete: SetNull)
-  selectionId           String?
-  selection             Selection?  @relation(fields: [selectionId], references: [id], onDelete: SetNull)
-  subscriptionId        String?
-  subscription          Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  status                OrderStatus @default(PENDING)
-  type                  String      @default("one_time") // "one_time" | "subscription"
-  
+  id             String        @id @default(cuid())
+  orderNumber    String        @unique
+  customerId     String
+  customer       Customer      @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?         @relation("UserOrders", fields: [userId], references: [id], onDelete: SetNull)
+  sommelierId    String?
+  sommelier      Sommelier?    @relation("SommelierOrders", fields: [sommelierId], references: [id], onDelete: SetNull)
+  selectionId    String?
+  selection      Selection?    @relation(fields: [selectionId], references: [id], onDelete: SetNull)
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  status         OrderStatus   @default(PENDING)
+  type           String        @default("one_time") // "one_time" | "subscription"
+
   // --- PRICING SNAPSHOT AL MOMENTO DE LA COMPRA ---
-  costCents             Int
-  markupMode            MarkupMode
-  markupValue           Float
-  platformSplitPct      Float
-  sommelierSplitPct     Float
-  markupCents           Int
-  platformSplitCents    Int
-  sommelierSplitCents   Int
-  priceCents            Int
-  currency              String      @default("USD")
+  costCents           Int
+  markupMode          MarkupMode
+  markupValue         Float
+  platformSplitPct    Float
+  sommelierSplitPct   Float
+  markupCents         Int
+  platformSplitCents  Int
+  sommelierSplitCents Int
+  priceCents          Int
+  currency            String     @default("USD")
   // ------------------------------------------------
-  
-  taxCents              Int         @default(0)
-  shippingCents         Int         @default(0)
-  discountCents         Int         @default(0)
+
+  taxCents              Int       @default(0)
+  shippingCents         Int       @default(0)
+  discountCents         Int       @default(0)
   totalCents            Int
   stripePaymentIntentId String?
   stripeChargeId        String?
@@ -364,14 +369,16 @@ model Order {
   deliveredAt           DateTime?
   trackingNumber        String?
   trackingUrl           String?
-  notes                 String?     @db.Text
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  notes                 String?   @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  items                 OrderItem[]
-  address               Address?    @relation("OrderAddress")
-  fulfillment           Fulfillment?
-  walletEntry           WalletEntry?
+  items             OrderItem[]
+  address           Address?           @relation("OrderAddress", fields: [addressId], references: [id])
+  addressId         String?
+  fulfillment       Fulfillment?
+  walletEntry       WalletEntry?
+  saleNotifications SaleNotification[]
 
   @@index([customerId, createdAt])
   @@index([sommelierId, createdAt])
@@ -380,63 +387,66 @@ model Order {
 }
 
 model OrderItem {
-  id          String  @id @default(cuid())
-  orderId     String
-  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  wineId      String
-  wine        Wine    @relation(fields: [wineId], references: [id], onDelete: Cascade)
-  quantity    Int     @default(1)
-  priceCents  Int
-  position    Int?
+  id         String @id @default(cuid())
+  orderId    String
+  order      Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  wineId     String
+  wine       Wine   @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  quantity   Int    @default(1)
+  priceCents Int
+  position   Int?
 
   @@unique([orderId, wineId])
   @@index([orderId])
 }
 
 model Fulfillment {
-  id                 String   @id @default(cuid())
-  orderId            String   @unique
-  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  status             String   @default("pending")
-  boxType            String?
-  weightGrams        Int?
-  dimensionsCm       String?
-  carrier            String?
-  serviceLevel       String?
-  labelUrl           String?
-  labelGeneratedAt   DateTime?
-  pickedBy           String?
-  packedBy           String?
-  shippedAt          DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id               String    @id @default(cuid())
+  orderId          String    @unique
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status           String    @default("pending")
+  boxType          String?
+  weightGrams      Int?
+  dimensionsCm     String?
+  carrier          String?
+  serviceLevel     String?
+  labelUrl         String?
+  labelGeneratedAt DateTime?
+  pickedBy         String?
+  packedBy         String?
+  shippedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([status])
 }
 
 model Address {
-  id                      String   @id @default(cuid())
-  userId                  String
-  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name                    String
-  company                 String?
-  line1                   String
-  line2                   String?
-  city                    String
-  state                   String
-  postalCode              String
-  country                 String   @default("US")
-  phone                   String?
-  isDefault               Boolean  @default(false)
-  addressType             String   @default("shipping")
-  requiresAdultSignature  Boolean  @default(true)
-  dateOfBirthVerified     Boolean  @default(false)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                     String    @id @default(cuid())
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId             String?
+  customer               Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name                   String
+  company                String?
+  line1                  String
+  line2                  String?
+  city                   String
+  state                  String
+  postalCode             String
+  country                String    @default("US")
+  phone                  String?
+  isDefault              Boolean   @default(false)
+  addressType            String    @default("shipping")
+  requiresAdultSignature Boolean   @default(true)
+  dateOfBirthVerified    Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  orders                  Order[]  @relation("OrderAddress")
+  orders Order[] @relation("OrderAddress")
 
   @@index([userId])
+  @@index([customerId])
   @@index([country, state])
 }
 
@@ -445,17 +455,17 @@ model Address {
 // ============================================
 
 model PaymentMethod {
-  id                      String   @id @default(cuid())
-  customerId              String
-  customer                Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  stripePaymentMethodId   String   @unique
-  type                    String
-  cardBrand               String?
-  cardLast4               String?
-  cardExpMonth            Int?
-  cardExpYear             Int?
-  isDefault               Boolean  @default(false)
-  createdAt               DateTime @default(now())
+  id                    String   @id @default(cuid())
+  customerId            String
+  customer              Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  stripePaymentMethodId String   @unique
+  type                  String
+  cardBrand             String?
+  cardLast4             String?
+  cardExpMonth          Int?
+  cardExpYear           Int?
+  isDefault             Boolean  @default(false)
+  createdAt             DateTime @default(now())
 
   @@index([customerId])
 }
@@ -465,20 +475,20 @@ model PaymentMethod {
 // ============================================
 
 model WalletEntry {
-  id            String          @id @default(cuid())
-  sommelierId   String
-  sommelier     Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  orderId       String?         @unique
-  order         Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  type          WalletEntryType
-  amountCents   Int             // Positivo = crédito, negativo = débito
-  balanceCents  Int             // Running balance
-  description   String
-  periodStart   DateTime?       // Para liquidaciones
-  periodEnd     DateTime?
-  isSettled     Boolean         @default(false)
-  settledAt     DateTime?
-  createdAt     DateTime        @default(now())
+  id           String          @id @default(cuid())
+  sommelierId  String
+  sommelier    Sommelier       @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  orderId      String?         @unique
+  order        Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type         WalletEntryType
+  amountCents  Int // Positivo = crédito, negativo = débito
+  balanceCents Int // Running balance
+  description  String
+  periodStart  DateTime? // Para liquidaciones
+  periodEnd    DateTime?
+  isSettled    Boolean         @default(false)
+  settledAt    DateTime?
+  createdAt    DateTime        @default(now())
 
   @@index([sommelierId, createdAt])
   @@index([periodStart, periodEnd, isSettled])
@@ -490,29 +500,29 @@ model WalletEntry {
 // ============================================
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   title     String
-  message   String   @db.Text
+  message   String    @db.Text
   data      Json?
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
 }
 
 model SaleNotification {
-  id           String     @id @default(cuid())
-  sommelierId  String
-  sommelier    Sommelier  @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
-  orderId      String
-  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  type         String     // "new_sale" | "subscription_renewal"
-  readAt       DateTime?
-  createdAt    DateTime   @default(now())
+  id          String    @id @default(cuid())
+  sommelierId String
+  sommelier   Sommelier @relation(fields: [sommelierId], references: [id], onDelete: Cascade)
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type        String // "new_sale" | "subscription_renewal"
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([sommelierId, readAt])
 }
@@ -522,12 +532,12 @@ model SaleNotification {
 // ============================================
 
 model AnalyticsEvent {
-  id        String   @id @default(cuid())
-  event     String
-  userId    String?
-  sessionId String?
+  id         String   @id @default(cuid())
+  event      String
+  userId     String?
+  sessionId  String?
   properties Json?
-  timestamp DateTime @default(now())
+  timestamp  DateTime @default(now())
 
   @@index([event, timestamp])
   @@index([userId, timestamp])
