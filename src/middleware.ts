@@ -1,44 +1,26 @@
 // src/middleware.ts
-import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth
-  const isOnAuth = req.nextUrl.pathname.startsWith("/auth")
-  const isOnDashboard = req.nextUrl.pathname.startsWith("/dashboard")
-  const isOnAdmin = req.nextUrl.pathname.startsWith("/dashboard/admin")
-  const isOnSommelier = req.nextUrl.pathname.startsWith("/dashboard/sommelier")
-  const isOnCustomer = req.nextUrl.pathname.startsWith("/dashboard/customer")
-  const role = req.auth?.user?.role
-
-  // Redirect logged-in users away from auth pages
-  if (isLoggedIn && isOnAuth) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl))
+// Middleware simplificado sin auth para waitlist MVP
+export default function middleware(req: Request) {
+  const url = new URL(req.url)
+  
+  // Skip waitlist API entirely
+  if (url.pathname.startsWith("/api/waitlist")) {
+    return NextResponse.next()
   }
 
-  // Protect dashboard routes
-  if (isOnDashboard && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/auth/signin", req.nextUrl))
+  // Skip all other API routes for now
+  if (url.pathname.startsWith("/api/")) {
+    return NextResponse.next()
   }
 
-  // Role-based protection
-  if (isOnAdmin && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl))
-  }
-  if (isOnSommelier && role !== "SOMMELIER" && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl))
-  }
-  if (isOnCustomer && role !== "CUSTOMER" && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl))
-  }
-
+  // Allow all other routes (auth, dashboard, etc.) - auth handled client-side
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: [
-    "/auth/:path*",
-    "/dashboard/:path*",
     "/api/:path*",
   ],
 }

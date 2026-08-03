@@ -4,10 +4,10 @@
 import { ReactNode } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
+import { cn } from "../../../lib/utils"
 import { Wine, Users, Package, DollarSign, Settings, LogOut, LayoutDashboard, Box, TrendingUp, UserPlus, Menu, X, Wallet } from "lucide-react"
 import { useSession, signOut } from "next-auth/react"
-import { Button } from "@/components/ui/button"
+import { Button } from "../../components/ui/button"
 import { useState } from "react"
 
 const navigation = {
