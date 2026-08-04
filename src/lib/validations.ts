@@ -1,6 +1,6 @@
 // src/lib/validations.ts
 import { z } from "zod"
-import { calculatePricing, validatePricing, PRICING_DEFAULTS } from "@/lib/pricing"
+import { validatePricing, PRICING_DEFAULTS, type PricingInput } from "./pricing"
 
 // ============================================
 // AUTH VALIDATIONS
@@ -40,7 +40,7 @@ export const selectionPricingSchema = z.object({
   sommelierSplitPct: z.number().min(PRICING_DEFAULTS.minSplitPct).max(PRICING_DEFAULTS.maxSplitPct).default(PRICING_DEFAULTS.sommelierSplitPct),
   currency: z.string().length(3).default(PRICING_DEFAULTS.currency),
 }).refine((data) => {
-  const errors = validatePricing(data)
+  const errors = validatePricing(data as PricingInput)
   return errors.length === 0
 }, {
   message: "Invalid pricing configuration",
@@ -61,7 +61,7 @@ export const selectionSchema = z.object({
   allowsSubscription: z.boolean().default(true),
 })
 
-export const selectionUpdateSchema = selectionSchema.partial().omit({ month: true, year: true, sommelierId: true })
+export const selectionUpdateSchema = selectionSchema.partial().omit({ month: true, year: true })
 
 // ============================================
 // WINE VALIDATIONS

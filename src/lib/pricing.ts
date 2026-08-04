@@ -40,7 +40,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     markupMode,
     markupValue,
     platformSplitPct = 50,
-    sommelierSplitPct = 50,
+    sommelierSplitPct: _sommelierSplitPct = 50,
     currency = 'USD',
   } = input
 
@@ -72,7 +72,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
  * Validate pricing input
  */
 export function validatePricing(input: PricingInput): string[] {
-  const errors: string[] = {}
+  const errors: string[] = []
 
   if (input.costCents < 1000) errors.push('Costo mínimo: $10')
   if (input.costCents > 500000) errors.push('Costo máximo: $5,000')
