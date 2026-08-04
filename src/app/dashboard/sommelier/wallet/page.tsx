@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card"
 import { Button } from "../../../../components/ui/button"
 import { Wallet, TrendingUp, DollarSign, ArrowDown, ArrowUp, Minus, Clock, CheckCircle, XCircle, AlertCircle, Download } from "lucide-react"
-import { formatPrice, formatDate } from "../../../../lib/utils"
+import { formatPrice, formatDate } from "../../../../lib/pricing"
 
 interface WalletEntry {
   id: string
