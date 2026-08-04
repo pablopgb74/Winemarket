@@ -1,7 +1,7 @@
 // src/app/selections/page.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
 import { Button } from "../../components/ui/button"
-import { Wine, Users, Star, MapPin, Calendar, Truck } from "lucide-react"
+import { Wine, Users, Star, Calendar, Truck } from "lucide-react"
 import Link from "next/link"
 
 const selections = [

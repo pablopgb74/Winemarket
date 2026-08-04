@@ -1,7 +1,7 @@
 // src/app/sommeliers/page.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
 import { Button } from "../../components/ui/button"
-import { Wine, Users, Star, Award, MapPin, Instagram, Twitter, ExternalLink } from "lucide-react"
+import { Wine, Star, Award, MapPin, Instagram, Twitter, ExternalLink, CheckCircle } from "lucide-react"
 import Link from "next/link"
 
 const sommeliers = [
@@ -248,6 +248,3 @@ export default function SommeliersPage() {
     </div>
   )
 }
-
-// Need to import CheckCircle
-import { CheckCircle } from "lucide-react"

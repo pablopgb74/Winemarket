@@ -50,7 +50,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
-        token.role = (user as any).role
+        token.role = (user as { role?: string }).role
       }
       if (trigger === "update" && session) {
         token.role = session.user.role
@@ -64,7 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session
     },
-    async signIn({ user, account }) {
+    async signIn({ user: _user, account }) {
       if (account?.provider !== "credentials") return true
       return true
     },
@@ -78,7 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 })
 
-// src/lib/auth.ts - Role helpers
+// Role helpers
 export async function getCurrentUser() {
   const session = await auth()
   return session?.user

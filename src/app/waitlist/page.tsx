@@ -61,7 +61,7 @@ function WaitlistContent() {
     it: "🇮🇹",
   }
 
-  const localeLabels: Record<string, string> = {
+  const _localeLabels: Record<string, string> = {
     en: "English",
     es: "Español",
     fr: "Français",
