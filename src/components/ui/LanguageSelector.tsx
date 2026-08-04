@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/button"
 import { cn } from "../../lib/utils"
 
 export function LanguageSelector() {
-  const { locale, setLocale, _t, availableLocales } = useLanguage()
+  const { locale, setLocale, availableLocales } = useLanguage()
 
   const localeLabels: Record<string, string> = {
     en: "English",

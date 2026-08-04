@@ -11,7 +11,7 @@ export interface PricingInput {
   markupMode: MarkupMode
   markupValue: number      // 20 = 20% | 15 = $15
   platformSplitPct?: number // default 50
-  sommelierSplitPct?: number // default 50
+  _sommelierSplitPct?: number // default 50
   currency?: string
 }
 
@@ -40,7 +40,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     markupMode,
     markupValue,
     platformSplitPct = 50,
-    sommelierSplitPct: _sommelierSplitPct = 50,
+    _sommelierSplitPct = 50,
     currency = 'USD',
   } = input
 
@@ -85,12 +85,12 @@ export function validatePricing(input: PricingInput): string[] {
     if (input.markupValue > 500) errors.push('Markup fijo máximo: $500')
   }
 
-  const totalSplit = (input.platformSplitPct || 50) + (input.sommelierSplitPct || 50)
+  const totalSplit = (input.platformSplitPct || 50) + (input._sommelierSplitPct || 50)
   if (Math.abs(totalSplit - 100) > 0.01) {
     errors.push('Los splits deben sumar 100%')
   }
   if ((input.platformSplitPct || 50) < 20) errors.push('Plataforma mínimo 20%')
-  if ((input.sommelierSplitPct || 50) < 20) errors.push('Sommelier mínimo 20%')
+  if ((input._sommelierSplitPct || 50) < 20) errors.push('Sommelier mínimo 20%')
 
   return errors
 }
@@ -123,7 +123,7 @@ export function calculatePricingFromSelection(selection: {
   markupMode: MarkupMode
   markupValue: number
   platformSplitPct: number
-  sommelierSplitPct: number
+  _sommelierSplitPct: number
   currency: string
 }): PricingResult {
   return calculatePricing({
@@ -131,7 +131,7 @@ export function calculatePricingFromSelection(selection: {
     markupMode: selection.markupMode,
     markupValue: selection.markupValue,
     platformSplitPct: selection.platformSplitPct,
-    sommelierSplitPct: selection.sommelierSplitPct,
+    _sommelierSplitPct: selection._sommelierSplitPct,
     currency: selection.currency,
   })
 }
@@ -144,14 +144,14 @@ export function getSelectionDenormalizedPricing(selection: {
   markupMode: MarkupMode
   markupValue: number
   platformSplitPct: number
-  sommelierSplitPct: number
+  _sommelierSplitPct: number
 }) {
   const result = calculatePricing({
     costCents: selection.costCents,
     markupMode: selection.markupMode,
     markupValue: selection.markupValue,
     platformSplitPct: selection.platformSplitPct,
-    sommelierSplitPct: selection.sommelierSplitPct,
+    _sommelierSplitPct: selection._sommelierSplitPct,
   })
 
   return {
@@ -170,7 +170,7 @@ export function calculatePricingFromOrder(order: {
   markupMode: MarkupMode
   markupValue: number
   platformSplitPct: number
-  sommelierSplitPct: number
+  _sommelierSplitPct: number
   currency: string
 }): PricingResult {
   return calculatePricing({
@@ -178,7 +178,7 @@ export function calculatePricingFromOrder(order: {
     markupMode: order.markupMode,
     markupValue: order.markupValue,
     platformSplitPct: order.platformSplitPct,
-    sommelierSplitPct: order.sommelierSplitPct,
+    _sommelierSplitPct: order._sommelierSplitPct,
     currency: order.currency,
   })
 }
@@ -190,7 +190,7 @@ export const PRICING_DEFAULTS = {
   markupMode: 'PERCENTAGE' as MarkupMode,
   markupValue: 20, // 20%
   platformSplitPct: 50,
-  sommelierSplitPct: 50,
+  _sommelierSplitPct: 50,
   currency: 'USD' as const,
   minCostCents: 1000,
   maxCostCents: 500000,

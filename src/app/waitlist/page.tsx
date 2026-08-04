@@ -61,13 +61,6 @@ function WaitlistContent() {
     it: "🇮🇹",
   }
 
-  const _localeLabels: Record<string, string> = {
-    en: "English",
-    es: "Español",
-    fr: "Français",
-    it: "Italiano",
-  }
-
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-wine-50 py-12 px-4">

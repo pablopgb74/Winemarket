@@ -17,7 +17,7 @@ export default function OnboardingPage() {
   const searchParams = useSearchParams()
   const email = searchParams.get("email") || ""
   const [role, setRole] = useState<"customer" | "sommelier">("customer")
-  const [_loading, setLoading] = useState(false)
+  const [_loading, _setLoading] = useState(false)
 
   const handleContinue = () => {
     router.push(`/dashboard/${role}`)
@@ -60,8 +60,8 @@ export default function OnboardingPage() {
               Signed in as: <span className="font-medium">{email}</span>
             </div>
           )}
-          <Button className="w-full" variant="wine" size="lg" onClick={handleContinue} disabled={loading}>
-            {loading ? (
+          <Button className="w-full" variant="wine" size="lg" onClick={handleContinue} disabled={_loading}>
+            {_loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Continuing...

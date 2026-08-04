@@ -1,10 +1,10 @@
 // src/app/dashboard/sommelier/wallet/page.tsx
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card"
 import { Button } from "../../../../components/ui/button"
-import { Wallet, TrendingUp, DollarSign, ArrowDown, ArrowUp, Minus, Clock, CheckCircle, XCircle, AlertCircle, Download } from "lucide-react"
+import { Wallet, TrendingUp, DollarSign, ArrowDown, Clock, CheckCircle, XCircle, AlertCircle, Download } from "lucide-react"
 import { formatPrice, formatDate } from "../../../../lib/pricing"
 
 interface WalletEntry {
@@ -43,11 +43,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState<"current" | "last" | "all">("current")
 
-  useEffect(() => {
-    fetchWallet()
-  }, [period])
-
-  const fetchWallet = async () => {
+  const fetchWallet = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/wallet?period=${period}`)
@@ -60,7 +56,11 @@ export default function WalletPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [period])
+
+  useEffect(() => {
+    fetchWallet()
+  }, [fetchWallet])
 
   const getTypeIcon = (type: WalletEntry["type"]) => {
     switch (type) {
