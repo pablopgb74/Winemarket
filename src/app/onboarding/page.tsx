@@ -17,7 +17,6 @@ export default function OnboardingPage() {
   const searchParams = useSearchParams()
   const email = searchParams.get("email") || ""
   const [role, setRole] = useState<"customer" | "sommelier">("customer")
-  const [_loading, _setLoading] = useState(false)
 
   const handleContinue = () => {
     router.push(`/dashboard/${role}`)

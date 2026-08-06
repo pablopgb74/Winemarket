@@ -9,10 +9,10 @@ import { Button } from "../../../components/ui/button"
 import { Input } from "../../../components/ui/input"
 import { Label } from "../../../components/ui/label"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../../components/ui/card"
-import { Wine, Mail, User, Loader2 } from "lucide-react"
+import { Wine, Mail, Loader2 } from "lucide-react"
 
 export default function SignInPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const searchParams = useSearchParams()
   const role = searchParams.get("role") || "customer"
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"

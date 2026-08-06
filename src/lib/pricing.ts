@@ -40,7 +40,6 @@ export function calculatePricing(input: PricingInput): PricingResult {
     markupMode,
     markupValue,
     platformSplitPct = 50,
-    _sommelierSplitPct = 50,
     currency = 'USD',
   } = input
 

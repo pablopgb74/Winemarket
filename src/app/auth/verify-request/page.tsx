@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { Button } from "../../../components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../../components/ui/card"
-import { Mail, CheckCircle, Loader2 } from "lucide-react"
+import { Mail, CheckCircle } from "lucide-react"
 
 export default function VerifyRequestPage() {
   return (

@@ -1,7 +1,7 @@
 // src/app/dashboard/sommelier/page.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card"
 import { Button } from "../../../components/ui/button"
-import { Wine, Users, DollarSign, TrendingUp, Plus, Box } from "lucide-react"
+import { Users, DollarSign, TrendingUp, Plus, Box } from "lucide-react"
 import Link from "next/link"
 
 const stats = [
