@@ -1,7 +1,7 @@
 // src/app/api/orders/route.ts
 import { auth } from "../../../lib/auth"
 import { prisma } from "../../../lib/prisma"
-import { stripe, createPaymentIntent, getOrCreateCustomer, generateOrderNumber } from "../../../lib/stripe"
+import { createPaymentIntent, getOrCreateCustomer, generateOrderNumber } from "../../../lib/stripe"
 import { calculatePricingFromSelection } from "../../../lib/pricing"
 import { createOrderSchema } from "../../../lib/validations"
 import { NextRequest, NextResponse } from "next/server"
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
         selectionId: selection.id,
         status: "PENDING",
         type,
-        boxSize,
+        // boxSize removido - no está en modelo Order
         // Pricing snapshot
         costCents: selection.costCents,
         markupMode: selection.markupMode,
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) {

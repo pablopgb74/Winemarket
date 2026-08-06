@@ -3,7 +3,7 @@ import { auth } from "../../../lib/auth"
 import { prisma } from "../../../lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) {
@@ -18,12 +18,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Sommelier profile not found" }, { status: 404 })
     }
 
-    const { searchParams } = new URL(req.url)
+    const { searchParams } = new URL(_req.url)
     const period = searchParams.get("period") // "current" | "last" | "all"
     const limit = parseInt(searchParams.get("limit") || "50")
     const offset = parseInt(searchParams.get("offset") || "0")
 
-    let where: any = { sommelierId: sommelier.id }
+    const where: Record<string, unknown> = { sommelierId: sommelier.id }
 
     if (period === "current") {
       const now = new Date()

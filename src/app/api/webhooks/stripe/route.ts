@@ -99,7 +99,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   // Transacción atómica: actualizar order + crear wallet entry + notificación
   await prisma.$transaction(async (tx) => {
     // 1. Actualizar order
-    const _updatedOrder = await tx.order.update({
+    await tx.order.update({
       where: { id: orderId },
       data: {
         status: "CONFIRMED",

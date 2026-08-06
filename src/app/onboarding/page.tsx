@@ -5,7 +5,7 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "../../components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../components/ui/card"
-import { Wine, ArrowRight, Loader2 } from "lucide-react"
+import { Wine, ArrowRight } from "lucide-react"
 
 const ROLE_OPTIONS = [
   { value: "customer", label: "I'm a Wine Lover", description: "Discover curated selections from top sommeliers" },
@@ -17,7 +17,6 @@ export default function OnboardingPage() {
   const searchParams = useSearchParams()
   const email = searchParams.get("email") || ""
   const [role, setRole] = useState<"customer" | "sommelier">("customer")
-  const [loading, setLoading] = useState(false)
 
   const handleContinue = () => {
     router.push(`/dashboard/${role}`)
@@ -60,15 +59,8 @@ export default function OnboardingPage() {
               Signed in as: <span className="font-medium">{email}</span>
             </div>
           )}
-          <Button className="w-full" variant="wine" size="lg" onClick={handleContinue} disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Continuing...
-              </>
-            ) : (
-              "Continue to Dashboard"
-            )}
+          <Button className="w-full" variant="wine" size="lg" onClick={handleContinue}>
+            Continue to Dashboard
           </Button>
         </CardContent>
         <CardFooter className="text-center text-sm text-dark-500">

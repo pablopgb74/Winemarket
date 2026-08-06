@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Wine, Mail, Loader2 } from "lucide-react"
 
 export default function SignInPage() {
-  const _router = useRouter()
+  useRouter()
   const searchParams = useSearchParams()
   const role = searchParams.get("role") || "customer"
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard"
