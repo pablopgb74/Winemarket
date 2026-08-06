@@ -116,6 +116,30 @@ export function formatPricingForDisplay(result: PricingResult, input?: PricingIn
 }
 
 /**
+ * Format price from cents to currency string
+ */
+export function formatPrice(cents: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
+  }).format(cents / 100)
+}
+
+/**
+ * Format date from ISO string to locale string
+ */
+export function formatDate(dateString: string | null | undefined, locale = 'en-US'): string {
+  if (!dateString) return '—'
+  return new Date(dateString).toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+/**
  * Calculate pricing from Selection model (denormalized fields)
  */
 export function calculatePricingFromSelection(selection: {
