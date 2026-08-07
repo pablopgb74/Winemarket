@@ -259,26 +259,36 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const sommelierId = subscription.metadata.sommelierId
   const customerId = subscription.metadata.customerId
 
-  await prisma.subscription.upsert({
+  // Buscar suscripción existente por stripeSubscriptionId
+  const existing = await prisma.subscription.findUnique({
     where: { stripeSubscriptionId: subscription.id },
-    create: {
-      stripeSubscriptionId: subscription.id,
-      customerId,
-      sommelierId,
-      selectionId: selectionId || undefined,
-      status: mapStripeStatus(subscription.status),
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-    },
-    update: {
-      status: mapStripeStatus(subscription.status),
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      cancelledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
-    },
   })
+
+  if (existing) {
+    await prisma.subscription.update({
+      where: { id: existing.id },
+      data: {
+        status: mapStripeStatus(subscription.status),
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        cancelledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
+      },
+    })
+  } else {
+    await prisma.subscription.create({
+      data: {
+        stripeSubscriptionId: subscription.id,
+        customerId,
+        sommelierId,
+        selectionId: selectionId || undefined,
+        status: mapStripeStatus(subscription.status),
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      },
+    })
+  }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
