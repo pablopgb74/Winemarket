@@ -415,10 +415,15 @@ async function handleSubscriptionPaymentSucceeded(invoice: Stripe.Invoice) {
 async function handleSubscriptionPaymentFailed(invoice: Stripe.Invoice) {
   if (!invoice.subscription) return
 
-  await prisma.subscription.update({
+  const existing = await prisma.subscription.findFirst({
     where: { stripeSubscriptionId: invoice.subscription as string },
-    data: { status: "PAST_DUE" },
   })
+  if (existing) {
+    await prisma.subscription.update({
+      where: { id: existing.id },
+      data: { status: "PAST_DUE" },
+    })
+  }
 }
 
 // ============================================
