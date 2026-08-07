@@ -1,6 +1,7 @@
 // src/app/api/webhooks/stripe/route.ts
 import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
+import Stripe from "stripe"
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
 import { calculatePricingFromOrder } from "@/lib/pricing"
