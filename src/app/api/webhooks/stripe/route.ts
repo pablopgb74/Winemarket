@@ -296,10 +296,15 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  await prisma.subscription.update({
+  const existing = await prisma.subscription.findFirst({
     where: { stripeSubscriptionId: subscription.id },
-    data: { status: "CANCELLED", cancelledAt: new Date() },
   })
+  if (existing) {
+    await prisma.subscription.update({
+      where: { id: existing.id },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    })
+  }
 }
 
 async function handleSubscriptionPaymentSucceeded(invoice: Stripe.Invoice) {
