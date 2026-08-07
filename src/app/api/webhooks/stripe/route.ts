@@ -131,7 +131,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       // 3. Vincular wallet entry al order
       await tx.order.update({
         where: { id: orderId },
-        data: { walletEntryId: walletEntry.id },
+        data: { walletEntry: { connect: { id: walletEntry.id } } },
       })
 
       // 4. Crear notificación de venta para el sommelier
