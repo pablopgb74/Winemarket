@@ -260,7 +260,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const customerId = subscription.metadata.customerId
 
   // Buscar suscripción existente por stripeSubscriptionId
-  const existing = await prisma.subscription.findUnique({
+  const existing = await prisma.subscription.findFirst({
     where: { stripeSubscriptionId: subscription.id },
   })
 
