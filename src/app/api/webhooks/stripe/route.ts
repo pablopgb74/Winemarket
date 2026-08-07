@@ -376,7 +376,7 @@ async function handleSubscriptionPaymentSucceeded(invoice: Stripe.Invoice) {
 
       await tx.order.update({
         where: { id: order.id },
-        data: { walletEntryId: walletEntry.id },
+        data: { walletEntry: { connect: { id: walletEntry.id } } },
       })
 
       // Notificación
