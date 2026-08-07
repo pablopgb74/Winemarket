@@ -9,6 +9,7 @@ import { Label } from "../../../../../components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../../components/ui/card"
 import { PricingForm, type PricingInput } from "../../../../../components/forms/PricingForm"
 import { Wine, Calendar, Box, ArrowLeft, Loader2 } from "lucide-react"
+import { LucideIcon } from "lucide-react"
 
 const MONTHS = [
   { value: 1, label: "January" }, { value: 2, label: "February" },
@@ -99,22 +100,21 @@ export default function NewSelectionPage() {
         throw new Error(data.error || "Failed to create selection")
       }
 
-      router.push(`/dashboard/sommelier/selections/${data.selection.id}`)
-    } catch (error) {
-      setErrors({ submit: error instanceof Error ? error.message : "Something went wrong" })
-    } finally {
-      setLoading(false)
-    }
-  }
+      } catch (error) {
+        setErrors({ submit: error instanceof Error ? error.message : "Something went wrong" })
+      } finally {
+        setLoading(false)
+      }
+      }
 
-  const steps = [
-    { id: "basic", label: "Basic Info", icon: Wine },
-    { id: "pricing", label: "Pricing", icon: Box },
-    { id: "wines", label: "Wines", icon: Wine },
-    { id: "review", label: "Review", icon: Calendar },
-  ]
+      const steps: { id: "basic" | "pricing" | "wines" | "review"; label: string; icon: LucideIcon }[] = [
+      { id: "basic", label: "Basic Info", icon: Wine },
+      { id: "pricing", label: "Pricing", icon: Box },
+      { id: "wines", label: "Wines", icon: Wine },
+      { id: "review", label: "Review", icon: Calendar },
+      ]
 
-  return (
+      return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -374,8 +374,8 @@ export default function NewSelectionPage() {
                       <>
                         <p><strong>Cost:</strong> ${(pricing.costCents / 100).toFixed(2)}</p>
                         <p><strong>Markup:</strong> {pricing.markupMode === "PERCENTAGE" ? `${pricing.markupValue}%` : `$${pricing.markupValue}`}</p>
-                        <p><strong>Your split:</strong> {100 - pricing.platformSplitPct}%</p>
-                        <p><strong>Platform split:</strong> {pricing.platformSplitPct}%</p>
+                        <p><strong>Your split:</strong> {100 - (pricing.platformSplitPct ?? 50)}%</p>
+                        <p><strong>Platform split:</strong> {pricing.platformSplitPct ?? 50}%</p>
                         <div className="pt-2 border-t">
                           <p className="text-lg font-bold text-wine-950">
                             Price: ${(pricing.costCents / 100 + (pricing.markupMode === "PERCENTAGE" ? pricing.costCents * pricing.markupValue / 10000 : pricing.markupValue)).toFixed(2)}

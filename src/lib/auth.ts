@@ -71,9 +71,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async createUser({ user }) {
-      await prisma.customer.create({
-        data: { userId: user.id },
-      })
+      if (user.id) {
+        await prisma.customer.create({
+          data: { userId: user.id },
+        })
+      }
     },
   },
 })

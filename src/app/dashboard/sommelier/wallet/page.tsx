@@ -265,11 +265,11 @@ export default function WalletPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {entry.isSettled ? (
-                          <CheckCircle className="w-5 h-5 text-green-500 mx-auto" title="Settled" />
+                          <CheckCircle className="w-5 h-5 text-green-500 mx-auto" aria-label="Settled" />
                         ) : entry.type === "PAYOUT" ? (
-                          <XCircle className="w-5 h-5 text-red-500 mx-auto" title="Pending transfer" />
+                          <XCircle className="w-5 h-5 text-red-500 mx-auto" aria-label="Pending transfer" />
                         ) : (
-                          <Clock className="w-5 h-5 text-yellow-500 mx-auto" title="Pending settlement" />
+                          <Clock className="w-5 h-5 text-yellow-500 mx-auto" aria-label="Pending settlement" />
                         )}
                       </td>
                     </tr>
@@ -286,10 +286,10 @@ export default function WalletPage() {
                 Showing {data.pagination.offset + 1}–{Math.min(data.pagination.offset + data.pagination.limit, data.pagination.total)} of {data.pagination.total}
               </span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={data.pagination.offset === 0} onClick={() => fetchWalletPage(data.pagination.offset - data.pagination.limit)}>
+                <Button variant="outline" size="sm" disabled={data.pagination.offset === 0} onClick={() => fetchWalletPage(data.pagination.offset - data.pagination.limit, period)}>
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" disabled={data.pagination.offset + data.pagination.limit >= data.pagination.total} onClick={() => fetchWalletPage(data.pagination.offset + data.pagination.limit)}>
+                <Button variant="outline" size="sm" disabled={data.pagination.offset + data.pagination.limit >= data.pagination.total} onClick={() => fetchWalletPage(data.pagination.offset + data.pagination.limit, period)}>
                   Next
                 </Button>
               </div>
@@ -301,7 +301,7 @@ export default function WalletPage() {
   )
 }
 
-function fetchWalletPage(offset: number) {
+function fetchWalletPage(offset: number, period: string) {
   // This would need a more complex state management, simplified for now
   window.location.href = `/dashboard/sommelier/wallet?offset=${offset}&period=${period}`
 }

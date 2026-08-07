@@ -7,7 +7,7 @@ import { Button } from "../../components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../components/ui/card"
 import { Wine, ArrowRight } from "lucide-react"
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS: { value: "customer" | "sommelier"; label: string; description: string }[] = [
   { value: "customer", label: "I'm a Wine Lover", description: "Discover curated selections from top sommeliers" },
   { value: "sommelier", label: "I'm a Sommelier", description: "Share your expertise and earn from your selections" },
 ]

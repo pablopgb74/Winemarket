@@ -6,7 +6,11 @@ import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card"
-import { calculatePricing, validatePricing, formatPricingForDisplay, PRICING_DEFAULTS, type MarkupMode, type PricingInput, type PricingDisplay } from "../../lib/pricing"
+import { calculatePricing, validatePricing, formatPricingForDisplay, PRICING_DEFAULTS, type MarkupMode, type PricingDisplay } from "../../lib/pricing"
+
+import type { PricingInput } from "../../lib/pricing"
+
+export type { PricingInput }
 import { cn } from "../../lib/utils"
 
 interface PricingFormProps {

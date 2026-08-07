@@ -62,7 +62,7 @@ export async function getOrCreateCustomer(email: string, name?: string, internal
   if (existing.data.length > 0) {
     return existing.data[0]
   }
-  return createCustomer({ email, name, metadata: { internalId } })
+  return createCustomer({ email, name, metadata: internalId ? { internalId } : undefined })
 }
 
 export async function createPaymentIntent(params: CreatePaymentIntentParams) {
@@ -161,7 +161,7 @@ export async function createPrice(params: {
   productId: string
   unitAmount: number
   currency?: string
-  recurring?: { interval: "month" | "quarter" | "year" }
+  recurring?: { interval: "month" | "year" }
   metadata?: Record<string, string>
 }) {
   return stripe.prices.create({
