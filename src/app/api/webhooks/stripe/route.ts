@@ -124,7 +124,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
           type: "SALE_COMMISSION",
           amountCents: pricing.sommelierSplitCents,
           balanceCents: newBalance,
-          description: `Venta: ${order.selection?.title || "Selección"} (${order.boxSize})`,
+          description: `Venta: ${order.selection?.title || "Selección"} (${order.selection?.boxSize})`,
         },
       })
 
