@@ -216,7 +216,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      include: { sommelier: true, walletEntry: true },
+      include: { sommelier: true, walletEntry: true, selection: true },
     })
     if (!order) return
 
