@@ -310,7 +310,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 async function handleSubscriptionPaymentSucceeded(invoice: Stripe.Invoice) {
   if (!invoice.subscription) return
 
-  const subscription = await prisma.subscription.findUnique({
+  const subscription = await prisma.subscription.findFirst({
     where: { stripeSubscriptionId: invoice.subscription as string },
     include: { sommelier: true, selection: true, customer: { include: { user: true } } },
   })
