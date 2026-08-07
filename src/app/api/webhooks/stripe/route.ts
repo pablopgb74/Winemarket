@@ -146,7 +146,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       // 5. Notificación al usuario (email)
       await tx.notification.create({
         data: {
-          userId: order.sommelier.userId,
+          userId: order.sommelier?.userId ?? order.customer.userId,
           type: "new_sale",
           title: "¡Nueva venta!",
           message: `Vendiste 1 caja de "${order.selection?.title}". Tu comisión: $${(pricing.sommelierSplitCents / 100).toFixed(2)}`,
